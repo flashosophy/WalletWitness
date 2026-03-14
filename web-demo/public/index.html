@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WalletWitness Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .subtitle { color: #94a3b8; font-size: 0.9rem; margin-bottom: 2rem; }
+    .card {
+      background: #1e2433;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #a5b4fc; }
+    .trust-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.9rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    .trust-anonymous { background: #374151; color: #9ca3af; }
+    .trust-authenticated_unverified { background: #1e3a5f; color: #60a5fa; }
+    .trust-verified_identity { background: #14532d; color: #4ade80; }
+    .trust-verified_action { background: #3b1d8b; color: #c4b5fd; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    button {
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: opacity 0.15s;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #6366f1; color: white; }
+    .btn-secondary { background: #2d3748; color: #e2e8f0; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-success { background: #16a34a; color: white; }
+    .result {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .result-ok { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+    .result-err { background: #2d0a0a; color: #f87171; border: 1px solid #7f1d1d; }
+    .result-info { background: #0f172a; color: #94a3b8; border: 1px solid #1e293b; }
+    .addr { font-size: 0.75rem; color: #64748b; font-family: monospace; margin-top: 0.5rem; word-break: break-all; }
+    .sep { border: none; border-top: 1px solid #2d3748; margin: 1rem 0; }
+    #status-section { margin-bottom: 1.5rem; }
+    select {
+      background: #2d3748;
+      color: #e2e8f0;
+      border: 1px solid #4a5568;
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+      margin-bottom: 0.75rem;
+    }
+    label { font-size: 0.8rem; color: #94a3b8; display: block; margin-bottom: 0.25rem; }
+    .countdown { font-size: 0.8rem; color: #f59e0b; margin-top: 0.4rem; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>🔐 WalletWitness</h1>
+  <p class="subtitle">Cryptographic proof of identity for AI agents — live demo</p>
+
+  <div id="status-section" class="card">
+    <h2>Current Trust State</h2>
+    <div id="trust-badge" class="trust-badge trust-anonymous"><span class="dot"></span> anonymous</div>
+    <div id="trust-detail" class="addr">Not verified</div>
+    <button class="btn-secondary" onclick="refreshTrust()">↻ Refresh</button>
+  </div>
+
+  <div class="card">
+    <h2>Step 1 — Connect &amp; Verify Identity</h2>
+    <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1rem;">
+      Sign a challenge with your wallet to prove you are the wallet owner. This establishes a <strong>verified_identity</strong> trust session.
+    </p>
+    <label for="ttl-select">Session duration</label>
+    <select id="ttl-select">
+      <option value="600000">10 minutes</option>
+      <option value="3600000" selected>1 hour</option>
+      <option value="28800000">8 hours</option>
+      <option value="43200000">12 hours</option>
+      <option value="86400000">24 hours</option>
+    </select>
+    <br />
+    <button class="btn-primary" id="btn-verify" onclick="verifyIdentity()">Connect Wallet &amp; Verify</button>
+    <div id="countdown" class="countdown"></div>
+    <div id="result-identity"></div>
+  </div>
+
+  <div class="card">
+    <h2>Step 2 — Test Protected Routes</h2>
+    <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1rem;">
+      Try hitting routes with different trust requirements. See which ones pass and which block.
+    </p>
+    <button class="btn-success" onclick="testIdentityRoute()">GET /protected/identity <small>(needs verified_identity)</small></button>
+    <button class="btn-danger" onclick="testActionRoute()">POST /protected/action <small>(needs verified_action)</small></button>
+    <div id="result-routes"></div>
+  </div>
+
+  <div class="card">
+    <h2>Step 3 — Scoped Step-Up</h2>
+    <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1rem;">
+      Sign a second challenge scoped to a specific action (<code>demo:delete</code>). This upgrades trust to <strong>verified_action</strong> for a short window.
+    </p>
+    <button class="btn-primary" id="btn-stepup" onclick="stepUp()" disabled>Sign Step-Up Challenge</button>
+    <button class="btn-danger" onclick="testActionRoute()">Retry POST /protected/action</button>
+    <div id="result-stepup"></div>
+  </div>
+
+  <script>
+    // ---- Config ----
+    const BASE = '';
+    const SESSION_HEADER = 'x-walletwitness-session';
+    const USER_HEADER = 'x-demo-user';
+    const USER_ID = 'demo-user';
+    const CHAIN_ID = 8453; // Base mainnet
+
+    let sessionId = null;
+    let connectedAddress = null;
+    let countdownInterval = null;
+    let sessionExpiresAt = null;
+
+    function startCountdown(expiresAt) {
+      sessionExpiresAt = expiresAt;
+      if (countdownInterval) clearInterval(countdownInterval);
+      const el = document.getElementById('countdown');
+      function tick() {
+        const remaining = sessionExpiresAt - Date.now();
+        if (remaining <= 0) {
+          el.textContent = '⚠ Session expired — re-verify to continue.';
+          clearInterval(countdownInterval);
+          refreshTrust();
+          return;
+        }
+        const h = Math.floor(remaining / 3600000);
+        const m = Math.floor((remaining % 3600000) / 60000);
+        const s = Math.floor((remaining % 60000) / 1000);
+        const parts = [];
+        if (h > 0) parts.push(`${h}h`);
+        if (m > 0 || h > 0) parts.push(`${m}m`);
+        parts.push(`${s}s`);
+        el.textContent = `⏱ Session expires in ${parts.join(' ')}`;
+      }
+      tick();
+      countdownInterval = setInterval(tick, 1000);
+    }
+
+    // ---- Helpers ----
+    function show(id, text, type = 'info') {
+      const el = document.getElementById(id);
+      el.className = `result result-${type}`;
+      el.textContent = text;
+    }
+
+    function headers(extra = {}) {
+      return {
+        'Content-Type': 'application/json',
+        [USER_HEADER]: USER_ID,
+        ...(sessionId ? { [SESSION_HEADER]: sessionId } : {}),
+        ...extra,
+      };
+    }
+
+    async function refreshTrust() {
+      const res = await fetch(`${BASE}/wallet/trust`, { headers: headers() });
+      const data = await res.json();
+      const state = data.trust?.state || 'anonymous';
+      const badge = document.getElementById('trust-badge');
+      badge.className = `trust-badge trust-${state}`;
+      badge.innerHTML = `<span class="dot"></span> ${state}`;
+      const detail = document.getElementById('trust-detail');
+      if (data.trust?.address) {
+        detail.textContent = `${data.trust.address} · chain ${data.trust.chainId} · expires ${new Date(data.trust.expiresAt).toLocaleTimeString()}`;
+      } else {
+        detail.textContent = 'Not verified';
+      }
+      return data.trust;
+    }
+
+    // ---- Step 1: Verify Identity ----
+    async function verifyIdentity() {
+      document.getElementById('btn-verify').disabled = true;
+      show('result-identity', 'Requesting wallet...', 'info');
+
+      try {
+        // Connect wallet
+        if (!window.ethereum) throw new Error('No wallet found. Install MetaMask or a WalletConnect-compatible browser extension.');
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        connectedAddress = accounts[0];
+
+        // Check chain
+        const chainHex = await window.ethereum.request({ method: 'eth_chainId' });
+        const chain = parseInt(chainHex, 16);
+        if (chain !== CHAIN_ID) {
+          show('result-identity', `Wrong network. Switch to Base (chainId ${CHAIN_ID}). You're on chain ${chain}.`, 'err');
+          document.getElementById('btn-verify').disabled = false;
+          return;
+        }
+
+        // Request challenge with chosen TTL
+        const ttlMs = Number(document.getElementById('ttl-select').value) || 3600000;
+        const chalRes = await fetch(`${BASE}/wallet/challenge`, {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({ address: connectedAddress, chainId: CHAIN_ID, trustSessionTtlMs: ttlMs }),
+        });
+        const chalData = await chalRes.json();
+        if (!chalRes.ok) throw new Error(chalData.error?.message || JSON.stringify(chalData));
+
+        // Grab session ID from response header
+        const newSession = chalRes.headers.get(SESSION_HEADER);
+        if (newSession) sessionId = newSession;
+
+        // Sign
+        const signature = await window.ethereum.request({
+          method: 'personal_sign',
+          params: [chalData.challenge.message, connectedAddress],
+        });
+
+        // Verify
+        const verRes = await fetch(`${BASE}/wallet/verify`, {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({
+            challengeId: chalData.challenge.challengeId,
+            message: chalData.challenge.message,
+            signature,
+          }),
+        });
+        const verData = await verRes.json();
+        if (!verRes.ok) throw new Error(verData.error?.message || JSON.stringify(verData));
+
+        const newSession2 = verRes.headers.get(SESSION_HEADER);
+        if (newSession2) sessionId = newSession2;
+
+        await refreshTrust();
+        startCountdown(verData.trust.expiresAt);
+        show('result-identity', `✓ Verified!\nAddress: ${verData.trust.address}\nChain: ${verData.trust.chainId}\nExpires: ${new Date(verData.trust.expiresAt).toLocaleString()}`, 'ok');
+        document.getElementById('btn-stepup').disabled = false;
+      } catch (err) {
+        show('result-identity', `✗ ${err.message}`, 'err');
+        document.getElementById('btn-verify').disabled = false;
+      }
+    }
+
+    // ---- Step 2: Test routes ----
+    async function testIdentityRoute() {
+      const res = await fetch(`${BASE}/protected/identity`, { headers: headers() });
+      const data = await res.json();
+      show('result-routes', JSON.stringify(data, null, 2), res.ok ? 'ok' : 'err');
+      await refreshTrust();
+    }
+
+    async function testActionRoute() {
+      const res = await fetch(`${BASE}/protected/action`, {
+        method: 'POST',
+        headers: headers(),
+      });
+      const data = await res.json();
+      show('result-routes', JSON.stringify(data, null, 2), res.ok ? 'ok' : 'err');
+      await refreshTrust();
+    }
+
+    // ---- Step 3: Step-up ----
+    async function stepUp() {
+      document.getElementById('btn-stepup').disabled = true;
+      show('result-stepup', 'Requesting step-up challenge...', 'info');
+
+      try {
+        const chalRes = await fetch(`${BASE}/wallet/challenge`, {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({
+            address: connectedAddress,
+            chainId: CHAIN_ID,
+            purpose: 'verify-action',
+            action: { kind: 'delete', scope: 'demo:delete' },
+          }),
+        });
+        const chalData = await chalRes.json();
+        if (!chalRes.ok) throw new Error(chalData.error?.message || JSON.stringify(chalData));
+
+        const signature = await window.ethereum.request({
+          method: 'personal_sign',
+          params: [chalData.challenge.message, connectedAddress],
+        });
+
+        const verRes = await fetch(`${BASE}/wallet/verify`, {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({
+            challengeId: chalData.challenge.challengeId,
+            message: chalData.challenge.message,
+            signature,
+          }),
+        });
+        const verData = await verRes.json();
+        if (!verRes.ok) throw new Error(verData.error?.message || JSON.stringify(verData));
+
+        const newSession = verRes.headers.get(SESSION_HEADER);
+        if (newSession) sessionId = newSession;
+
+        await refreshTrust();
+        show('result-stepup', `✓ Step-up granted!\nScope: ${verData.trust.actionGrant?.scope}\nExpires: ${new Date(verData.trust.actionGrant?.expiresAt).toLocaleString()}`, 'ok');
+        document.getElementById('btn-stepup').disabled = false;
+      } catch (err) {
+        show('result-stepup', `✗ ${err.message}`, 'err');
+        document.getElementById('btn-stepup').disabled = false;
+      }
+    }
+
+    // Init
+    refreshTrust();
+  </script>
+</body>
+</html>

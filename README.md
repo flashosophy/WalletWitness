@@ -1,16 +1,16 @@
 # WalletWitness
 
-> *Cryptographic proof of who your AI is talking to — not just a session token.*
+> *So your AI knows it's actually talking to you — not just someone with your session.*
 
-Every AI system builder eventually hits this moment:
+An AI agent can be given a lot of trust. It can read your files, send messages on your behalf, manage your infrastructure. The more capable the agent, the more damage an impersonator can do.
 
-**"How do I know it's actually them?"**
+The problem isn't authentication — most systems already have logins. The problem is that session tokens don't prove *identity*. A grabbed cookie, a leaked API key, a browser left open at a café: any of these let someone else walk into your agent's front door wearing your credentials.
 
-Not the account. Not the browser session. *Them.* The person who built this agent, who owns it, who should be the only one authorized to ask it to do sensitive things.
+WalletWitness is built around a different question — not *"does this session exist?"* but **"is this actually my human?"**
 
-Passwords and session tokens work until they don't — until a tab is left open, a token gets leaked, or a third-party integration inherits more trust than you intended. The attacker doesn't need sophistication. They just need presence.
+The answer is a cryptographic signature. Your wallet already proves *"this is me"* on-chain. WalletWitness brings that same proof into the AI interaction layer — so the agent can be confident the person giving sensitive instructions is the person who owns it.
 
-WalletWitness answers with a cryptographic signature. Wallets are already how people prove *"this is me"* on-chain. WalletWitness brings that proof into the AI interaction layer.
+This is also what protects against impersonation. It's not enough to block strangers. A stolen session *looks* like the real owner. A wallet signature *is* the real owner.
 
 ---
 
@@ -157,6 +157,20 @@ The demo walks through the full flow in a single process: anonymous → verified
 - **Trust sessions default to 24h.** Verified action grants default to 5 minutes. Both are configurable.
 - **Memory stores are included** for development and testing. Bring your own Redis/Postgres adapter for production.
 - **Extracted from production.** The challenge/sign/verify flow and trust session model have been running in a live AI agent system. This is not a prototype.
+
+---
+
+## Built With
+
+WalletWitness stands on solid open-source foundations:
+
+| Library | Role |
+|---|---|
+| **[viem](https://viem.sh)** | EVM address normalization, EIP-191 signature recovery (`recoverMessageAddress`), checksum encoding |
+| **[WalletConnect](https://walletconnect.com)** | Mobile wallet pairing and session relay — used in the reference eva-core integration for connecting mobile wallets to the agent |
+| **[Express](https://expressjs.com)** | Server middleware layer (`@walletwitness/server`) |
+
+The core cryptographic primitives (`challenge`, `verify`, `trust-session`) have no framework dependencies — just `viem` and Node's built-in `crypto` module.
 
 ---
 

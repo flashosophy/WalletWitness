@@ -98,11 +98,11 @@
   </div>
 
   <div class="card">
-    <h2>Step 1 — Connect &amp; Verify Identity</h2>
+    <h2>Step 1 — Prove it's you</h2>
     <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1rem;">
-      Sign a challenge with your wallet to prove you are the wallet owner. This establishes a <strong>verified_identity</strong> trust session.
+      Connect your crypto wallet and sign a one-time message. This proves you actually own the wallet — not just that you have a login. Your agent can then trust it's really you giving instructions.
     </p>
-    <label for="ttl-select">Session duration</label>
+    <label for="ttl-select">How long should this verification last?</label>
     <select id="ttl-select">
       <option value="600000">10 minutes</option>
       <option value="3600000" selected>1 hour</option>
@@ -117,22 +117,22 @@
   </div>
 
   <div class="card">
-    <h2>Step 2 — Test Protected Routes</h2>
+    <h2>Step 2 — See what's unlocked</h2>
     <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1rem;">
-      Try hitting routes with different trust requirements. See which ones pass and which block.
+      Try two actions. The first one just needs you to be verified — it'll go through. The second one is more sensitive and requires an extra confirmation. Try it before and after step 3 to see the difference.
     </p>
-    <button class="btn-success" onclick="testIdentityRoute()">GET /protected/identity <small>(needs verified_identity)</small></button>
-    <button class="btn-danger" onclick="testActionRoute()">POST /protected/action <small>(needs verified_action)</small></button>
+    <button class="btn-success" onclick="testIdentityRoute()">✓ Access my profile <small style="opacity:0.6">(verified identity is enough)</small></button>
+    <button class="btn-danger" onclick="testActionRoute()">✗ Delete something sensitive <small style="opacity:0.6">(needs extra confirmation)</small></button>
     <div id="result-routes"></div>
   </div>
 
   <div class="card">
-    <h2>Step 3 — Scoped Step-Up</h2>
+    <h2>Step 3 — Approve a sensitive action</h2>
     <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1rem;">
-      Sign a second challenge scoped to a specific action (<code>demo:delete</code>). This upgrades trust to <strong>verified_action</strong> for a short window.
+      Some actions — like deleting data or making a big change — require a second wallet signature, scoped just to that action. Think of it like a confirmation dialog, but cryptographic. Sign once, and the action is unlocked for a short window.
     </p>
-    <button class="btn-primary" id="btn-stepup" onclick="stepUp()" disabled>Sign Step-Up Challenge</button>
-    <button class="btn-danger" onclick="testActionRoute()">Retry POST /protected/action</button>
+    <button class="btn-primary" id="btn-stepup" onclick="stepUp()" disabled>Sign to approve this action</button>
+    <button class="btn-danger" onclick="testActionRoute()">Try sensitive action again</button>
     <div id="result-stepup"></div>
   </div>
 
@@ -196,7 +196,13 @@
       const state = data.trust?.state || 'anonymous';
       const badge = document.getElementById('trust-badge');
       badge.className = `trust-badge trust-${state}`;
-      badge.innerHTML = `<span class="dot"></span> ${state}`;
+      const labels = {
+        anonymous: 'Not connected',
+        authenticated_unverified: 'Connected — not yet verified',
+        verified_identity: 'Identity verified ✓',
+        verified_action: 'Action approved ✓',
+      };
+      badge.innerHTML = `<span class="dot"></span> ${labels[state] || state}`;
       const detail = document.getElementById('trust-detail');
       if (data.trust?.address) {
         detail.textContent = `${data.trust.address} · chain ${data.trust.chainId} · expires ${new Date(data.trust.expiresAt).toLocaleTimeString()}`;

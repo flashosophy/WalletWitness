@@ -1,0 +1,16 @@
+{
+  "name": "walletwitness-demo",
+  "version": "0.1.0",
+  "description": "Minimal WalletWitness integration demo",
+  "main": "index.js",
+  "type": "commonjs",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@walletwitness/core": "^0.1.0",
+    "@walletwitness/server": "^0.1.0",
+    "express": "^5.2.1"
+  }
+}

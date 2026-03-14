@@ -1,0 +1,11 @@
+{
+  "name": "@walletwitness/core",
+  "version": "0.1.0",
+  "description": "Core WalletWitness verification and trust primitives",
+  "main": "index.js",
+  "type": "commonjs",
+  "license": "MIT",
+  "dependencies": {
+    "viem": "^2.47.1"
+  }
+}

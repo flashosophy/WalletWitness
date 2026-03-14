@@ -12,7 +12,7 @@ The answer is a cryptographic signature. Your wallet already proves *"this is me
 
 This is also what protects against impersonation. It's not enough to block strangers. A stolen session *looks* like the real owner. A wallet signature *is* the real owner.
 
-![WalletWitness Demo](./demo/screenshot.png)
+![WalletWitness Demo](./demo/screenshot0.png)
 
 ---
 

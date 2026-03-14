@@ -48,6 +48,27 @@ function normalizeHeaders(headers = {}) {
   );
 }
 
+function preservePrototypeMethods(instance) {
+  const seen = new Set();
+  let cursor = Object.getPrototypeOf(instance);
+
+  while (cursor && cursor !== Object.prototype) {
+    for (const name of Object.getOwnPropertyNames(cursor)) {
+      if (name === 'constructor' || seen.has(name) || Object.prototype.hasOwnProperty.call(instance, name)) {
+        continue;
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(cursor, name);
+      if (descriptor && typeof descriptor.value === 'function') {
+        instance[name] = instance[name].bind(instance);
+        seen.add(name);
+      }
+    }
+
+    cursor = Object.getPrototypeOf(cursor);
+  }
+}
+
 async function invokeApp(app, {
   body,
   headers = {},
@@ -58,6 +79,7 @@ async function invokeApp(app, {
     let settled = false;
 
     const request = new PassThrough();
+    preservePrototypeMethods(request);
     request.method = String(method || 'GET').toUpperCase();
     request.url = path;
     request.originalUrl = path;
@@ -71,6 +93,7 @@ async function invokeApp(app, {
     request.get = (name) => request.headers[String(name || '').toLowerCase()];
 
     const response = new PassThrough();
+    preservePrototypeMethods(response);
     const chunks = [];
     const responseHeaders = new Map();
 

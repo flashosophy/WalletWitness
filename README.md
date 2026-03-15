@@ -16,6 +16,24 @@ This is also what protects against impersonation. It's not enough to block stran
 
 ---
 
+## Prerequisites
+
+**WalletWitness assumes you already have:**
+
+- A **crypto wallet** (browser extension or mobile app) that supports Ethereum/EVM signing
+- **Basic familiarity** with wallet signing, seed phrases, and gasless off-chain messages
+- A **development environment** with Node.js and npm/yarn/pnpm
+
+**What this project does NOT include:**
+
+- Wallet setup guides or seed phrase management tutorials
+- Recommendations for specific wallet software
+- Blockchain education or crypto onboarding
+
+**If you're new to crypto wallets:** You'll need to set one up and understand signing basics before using WalletWitness. This project is designed for developers who already have wallet infrastructure in place.
+
+---
+
 ## Three Promises
 
 WalletWitness does exactly three things and nothing else:

@@ -47,6 +47,31 @@ function normalizeContext(value) {
   return normalized ? normalized.slice(0, 200) : undefined;
 }
 
+function normalizeOptionalString(value) {
+  const normalized = String(value || '').trim();
+  return normalized || undefined;
+}
+
+function normalizeResources(resources) {
+  if (!Array.isArray(resources)) return [];
+
+  const normalized = [];
+  const seen = new Set();
+
+  for (const resource of resources) {
+    const value = String(resource || '').replace(/\s+/g, ' ').trim();
+    if (!value) continue;
+
+    const trimmed = value.slice(0, 500);
+    if (seen.has(trimmed)) continue;
+
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+
+  return normalized;
+}
+
 function normalizeAction(action = null) {
   if (!action || typeof action !== 'object') return null;
 
@@ -82,30 +107,25 @@ function buildChallengeStatement({
   action,
   appName,
   purpose,
-  subject,
   verificationTtlMs,
 }) {
   if (purpose === VERIFY_ACTION_PURPOSE) {
-    const subjectLabel = String(subject || 'User').trim() || 'User';
     const scope = action?.scope || 'sensitive action';
-    return `Authorize this ${appName} action as ${subjectLabel} for ${formatDuration(verificationTtlMs)}: ${scope}.`;
+    return `Approve action for ${appName}: ${scope}. Expires in ${formatDuration(verificationTtlMs)}.`;
   }
 
-  const subjectLabel = String(subject || 'User').trim() || 'User';
-  return `Verify this session as ${subjectLabel} for ${appName}.`;
+  return `Sign in to ${appName}.`;
 }
 
 function buildChallengeMessage({
-  action,
   address,
   chainId,
-  context,
   domain,
   expiresAt,
   issuedAt,
   nonce,
-  purpose,
-  sessionId,
+  requestId,
+  resources = [],
   statement,
   uri,
 }) {
@@ -123,16 +143,9 @@ function buildChallengeMessage({
     `Expiration Time: ${new Date(expiresAt).toISOString()}`,
   ];
 
-  if (sessionId) {
-    lines.push(`Request ID: ${sessionId}`);
+  if (requestId) {
+    lines.push(`Request ID: ${requestId}`);
   }
-
-  const resources = [
-    `urn:walletwitness:purpose:${purpose}`,
-    ...(context ? [`urn:walletwitness:context:${context}`] : []),
-    ...(action?.kind ? [`urn:walletwitness:action-kind:${action.kind}`] : []),
-    ...(action?.scope ? [`urn:walletwitness:action-scope:${action.scope}`] : []),
-  ];
 
   if (resources.length > 0) {
     lines.push('Resources:');
@@ -208,6 +221,7 @@ async function readChallenge({
   challengeId,
   message,
   now = Date.now(),
+  sessionId,
   store,
 }) {
   if (!store || typeof store.get !== 'function') {
@@ -231,6 +245,18 @@ async function readChallenge({
     throw makeError('MESSAGE_MISMATCH', 'Signed message does not match the issued challenge.');
   }
 
+  const expectedSessionId = normalizeOptionalString(sessionId);
+  if (expectedSessionId && challenge.sessionId !== expectedSessionId) {
+    throw makeError(
+      'SESSION_MISMATCH',
+      'Challenge was issued for a different host session.',
+      {
+        actualSessionId: challenge.sessionId || null,
+        expectedSessionId,
+      }
+    );
+  }
+
   return challenge;
 }
 
@@ -238,11 +264,20 @@ async function consumeChallenge({
   challengeId,
   message,
   now = Date.now(),
+  sessionId,
   store,
 }) {
   if (!store || typeof store.consume !== 'function') {
     throw new Error('Challenge store must expose a consume(challengeId, options) method.');
   }
+
+  await readChallenge({
+    challengeId,
+    message,
+    now,
+    sessionId,
+    store,
+  });
 
   const challenge = await store.consume(challengeId, { message, now });
   if (!challenge) {
@@ -263,6 +298,8 @@ async function issueChallenge({
   expectedChainId = chainId,
   now = Date.now(),
   purpose = VERIFY_SESSION_PURPOSE,
+  requestId,
+  resources,
   sessionId = '',
   store,
   subject = 'User',
@@ -285,24 +322,23 @@ async function issueChallenge({
     ? normalizeAction(action)
     : null;
   const normalizedContext = normalizeContext(context);
+  const normalizedRequestId = normalizeOptionalString(requestId);
+  const normalizedResources = normalizeResources(resources);
   const statement = buildChallengeStatement({
     action: normalizedAction,
     appName: String(appName || 'WalletWitness').trim() || 'WalletWitness',
     purpose: normalizedPurpose,
-    subject,
     verificationTtlMs,
   });
   const message = buildChallengeMessage({
-    action: normalizedAction,
     address: normalizeAddress(address, { checksum: true }),
     chainId: normalizedChainId,
-    context: normalizedContext,
     domain: String(domain || 'walletwitness.local').trim() || 'walletwitness.local',
     expiresAt,
     issuedAt,
     nonce,
-    purpose: normalizedPurpose,
-    sessionId: String(sessionId || '').trim(),
+    requestId: normalizedRequestId,
+    resources: normalizedResources,
     statement,
     uri: String(uri || 'http://localhost').trim() || 'http://localhost',
   });
@@ -317,7 +353,9 @@ async function issueChallenge({
     chainId: normalizedChainId,
     purpose: normalizedPurpose,
     action: normalizedAction,
-    sessionId: String(sessionId || '').trim() || undefined,
+    sessionId: normalizeOptionalString(sessionId),
+    ...(normalizedRequestId ? { requestId: normalizedRequestId } : {}),
+    ...(normalizedResources.length > 0 ? { resources: normalizedResources } : {}),
     verificationTtlMs: Math.max(1, Math.trunc(Number(verificationTtlMs) || 0)),
     message,
     usedAt: null,

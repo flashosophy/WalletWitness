@@ -41,6 +41,11 @@ app.use(walletWitness.attachTrustSession);
 app.post('/wallet/challenge', async (req, res) => {
   try {
     const body = req.body || {};
+
+    if (String(body.purpose || '').trim().toLowerCase() === 'verify-action') {
+      return walletWitness.challengeRoute(req, res);
+    }
+
     const { sessionId, subject, trust } = req.walletWitness;
 
     if (!sessionId || !subject) {

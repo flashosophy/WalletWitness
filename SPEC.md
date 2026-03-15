@@ -109,6 +109,18 @@ Mobile wallet detection can report `chainId=1` (Ethereum mainnet) on initial con
 
 ## Section 3: Behavior + Shape
 
+### Signing UX / Wallet Safety Compatibility
+
+For ordinary sign-in / auth challenges, WalletWitness should optimize for the most standard, parser-friendly SIWE prompt possible without weakening the trust model.
+
+- Use the normal SIWE text envelope with `personal_sign` for wallet approval.
+- For normal login/auth, keep the signed message minimal: domain, address, statement, URI, Version, Chain ID, Nonce, Issued At, and Expiration Time.
+- Omit optional `Request ID` and `Resources` by default for normal login/auth flows.
+- Keep the statement plain and boring, for example: `Sign in to <app>.`
+- Keep session binding, subject binding, purpose, and internal app context on the server side rather than encoding them as custom SIWE fields during ordinary login.
+- Never fake the domain for compatibility. In local development, use the real local origin and document that some wallet safety tooling may still warn on private or unfamiliar hosts.
+- For scoped step-up challenges, keep the SIWE envelope but put the important action scope in the plain-language statement instead of relying on custom `Resources` entries unless an integrator explicitly opts into them.
+
 ### Flow A: Identity Verification
 
 ```

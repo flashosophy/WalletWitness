@@ -295,10 +295,28 @@ test('middleware supports verify, gate, step-up, and expiry downgrade', async ()
   assert.ok(sessionId);
   const challengePayload = challengeResponse.json();
   assert.equal(challengePayload.trust.state, 'authenticated_unverified');
+  assert.match(challengePayload.challenge.message, /Sign in to WalletWitness Demo\./i);
+  assert.equal(challengePayload.challenge.message.includes('Request ID:'), false);
+  assert.equal(challengePayload.challenge.message.includes('Resources:'), false);
 
   const signature = await account.signMessage({
     message: challengePayload.challenge.message,
   });
+
+  const wrongSessionVerifyResponse = createResponseLike(await runtime.request({
+    method: 'POST',
+    path: '/wallet/verify',
+    headers: sessionHeaders('user-jun', 'wwsess_other'),
+    body: {
+      challengeId: challengePayload.challenge.challengeId,
+      message: challengePayload.challenge.message,
+      signature,
+    },
+  }));
+  assert.equal(wrongSessionVerifyResponse.status, 409);
+  const wrongSessionVerifyPayload = wrongSessionVerifyResponse.json();
+  assert.equal(wrongSessionVerifyPayload.error.code, 'session_mismatch');
+
   const verifyResponse = createResponseLike(await runtime.request({
     method: 'POST',
     path: '/wallet/verify',
@@ -344,7 +362,9 @@ test('middleware supports verify, gate, step-up, and expiry downgrade', async ()
   }));
   assert.equal(stepUpChallengeResponse.status, 200);
   const stepUpChallengePayload = stepUpChallengeResponse.json();
-  assert.match(stepUpChallengePayload.challenge.message, /Authorize this WalletWitness Demo action/i);
+  assert.match(stepUpChallengePayload.challenge.message, /Approve action for WalletWitness Demo: demo:dangerous-delete\./i);
+  assert.equal(stepUpChallengePayload.challenge.message.includes('Request ID:'), false);
+  assert.equal(stepUpChallengePayload.challenge.message.includes('Resources:'), false);
 
   const stepUpSignature = await account.signMessage({
     message: stepUpChallengePayload.challenge.message,

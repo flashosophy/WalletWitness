@@ -40,7 +40,9 @@ test('challenge issuance and verification create a verified identity session', a
     appName: 'WalletWitness Demo',
   });
 
-  assert.match(challenge.message, /Verify this session as Jun/i);
+  assert.match(challenge.message, /Sign in to WalletWitness Demo\./i);
+  assert.equal(challenge.message.includes('Request ID:'), false);
+  assert.equal(challenge.message.includes('Resources:'), false);
   const signature = await account.signMessage({ message: challenge.message });
   const { verificationRecord } = await verifyChallengeResponse({
     store,
@@ -56,6 +58,47 @@ test('challenge issuance and verification create a verified identity session', a
   assert.equal(trust.address, account.address.toLowerCase());
   assert.equal(trust.chainId, DEFAULT_CHAIN_ID);
   assert.ok(trust.expiresAt > trust.verifiedAt);
+});
+
+test('request IDs and resources stay opt-in for special integrations', async () => {
+  const store = createMemoryChallengeStore();
+  const challenge = await issueChallenge({
+    store,
+    address: account.address,
+    chainId: DEFAULT_CHAIN_ID,
+    requestId: 'req_walletwitness_demo',
+    resources: [
+      'urn:walletwitness:purpose:verify-session',
+      'urn:walletwitness:context:eva-core',
+    ],
+  });
+
+  assert.equal(challenge.message.includes('Request ID: req_walletwitness_demo'), true);
+  assert.equal(challenge.message.includes('Resources:'), true);
+  assert.deepEqual(challenge.resources, [
+    'urn:walletwitness:purpose:verify-session',
+    'urn:walletwitness:context:eva-core',
+  ]);
+});
+
+test('step-up challenges keep the action scope in plain language without auto resources', async () => {
+  const store = createMemoryChallengeStore();
+  const challenge = await issueChallenge({
+    store,
+    address: account.address,
+    chainId: DEFAULT_CHAIN_ID,
+    appName: 'WalletWitness Demo',
+    purpose: 'verify-action',
+    action: {
+      kind: 'delete',
+      scope: 'demo:dangerous-delete',
+    },
+    verificationTtlMs: 5 * 60 * 1000,
+  });
+
+  assert.match(challenge.message, /Approve action for WalletWitness Demo: demo:dangerous-delete\./i);
+  assert.equal(challenge.message.includes('Request ID:'), false);
+  assert.equal(challenge.message.includes('Resources:'), false);
 });
 
 test('challenge replay is blocked after a successful verification', async () => {
@@ -87,6 +130,41 @@ test('challenge replay is blocked after a successful verification', async () => 
     }),
     (error) => error && error.code === 'CHALLENGE_USED'
   );
+});
+
+test('challenge verification is bound to the issuing session', async () => {
+  const store = createMemoryChallengeStore();
+  const challenge = await issueChallenge({
+    store,
+    address: account.address,
+    chainId: DEFAULT_CHAIN_ID,
+    sessionId: 'sess_origin',
+    subject: 'Jun',
+  });
+  const signature = await account.signMessage({ message: challenge.message });
+
+  await assert.rejects(
+    verifyChallengeResponse({
+      store,
+      challengeId: challenge.challengeId,
+      message: challenge.message,
+      signature,
+      sessionId: 'sess_other',
+      expectedChainId: DEFAULT_CHAIN_ID,
+    }),
+    (error) => error && error.code === 'SESSION_MISMATCH'
+  );
+
+  const { verificationRecord } = await verifyChallengeResponse({
+    store,
+    challengeId: challenge.challengeId,
+    message: challenge.message,
+    signature,
+    sessionId: 'sess_origin',
+    expectedChainId: DEFAULT_CHAIN_ID,
+  });
+
+  assert.equal(verificationRecord.address, account.address.toLowerCase());
 });
 
 test('message mismatch and chain mismatch do not silently fall back', async () => {

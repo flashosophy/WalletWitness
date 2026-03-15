@@ -80,7 +80,7 @@ function mapErrorCode(code) {
 function mapErrorStatus(error) {
   const code = String(error?.code || '').trim();
 
-  if (code === 'CHAIN_MISMATCH' || code === 'IDENTITY_MISMATCH') return 409;
+  if (code === 'CHAIN_MISMATCH' || code === 'IDENTITY_MISMATCH' || code === 'SESSION_MISMATCH') return 409;
   if (code === 'CHALLENGE_NOT_FOUND') return 404;
   if (code === 'TRUST_SESSION_NOT_VERIFIED') return 403;
   if ([
@@ -334,6 +334,7 @@ function createWalletWitnessMiddleware(options = {}) {
         challengeId: body.challengeId,
         expectedChainId,
         message: body.message,
+        sessionId: req.walletWitness.sessionId,
         signature: body.signature,
         store: challengeStore,
       });

@@ -1,0 +1,14 @@
+{
+  "name": "walletwitness-web-demo",
+  "version": "0.1.0",
+  "description": "WalletWitness live web demo",
+  "main": "server.js",
+  "type": "commonjs",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

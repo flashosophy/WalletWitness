@@ -1,0 +1,8 @@
+{
+  "name": "@walletwitness/client",
+  "version": "0.1.0",
+  "description": "Framework-free client helpers for WalletWitness flows",
+  "main": "index.js",
+  "type": "commonjs",
+  "license": "MIT"
+}

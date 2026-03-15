@@ -8,8 +8,9 @@
     "demo"
   ],
   "scripts": {
-    "test": "node --test packages/core/test/*.test.js packages/server/test/*.test.js",
+    "test": "node --test packages/core/test/*.test.js packages/client/test/*.test.js packages/server/test/*.test.js",
     "test:core": "node --test packages/core/test/*.test.js",
+    "test:client": "node --test packages/client/test/*.test.js",
     "test:server": "node --test packages/server/test/*.test.js",
     "demo": "node demo/index.js"
   }

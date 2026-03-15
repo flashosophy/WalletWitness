@@ -1,21 +1,15 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
 const { PassThrough } = require('node:stream');
 
 const express = require('express');
 const { privateKeyToAccount } = require('viem/accounts');
 
-function loadCore() {
-  try {
-    return require('@walletwitness/core');
-  } catch (_error) {
-    return require('../packages/core');
-  }
-}
-
 function loadClient() {
   try {
     return require('@walletwitness/client');
   } catch (_error) {
-    return require('../packages/client');
+    return require('..');
   }
 }
 
@@ -23,22 +17,29 @@ function loadServer() {
   try {
     return require('@walletwitness/server');
   } catch (_error) {
-    return require('../packages/server');
+    return require('../../server');
   }
 }
 
-const { trustSatisfiesRequirement } = loadCore();
 const {
   createTrustStateStore,
   createWalletWitnessClient,
+  describeTrustState,
   renderTrustStatusBadge,
 } = loadClient();
-const {
-  createWalletWitnessMiddleware,
-  createProtectMiddleware,
-} = loadServer();
+const { createWalletWitnessMiddleware } = loadServer();
+
+const account = privateKeyToAccount(
+  '0x59c6995e998f97a5a0044976f1d81f4edc7d4b6ed7f42fb178cdb5f7f8b3d1cf'
+);
 
 function normalizeHeaders(headers = {}) {
+  if (!headers) return {};
+
+  if (typeof headers.entries === 'function') {
+    return Object.fromEntries(Array.from(headers.entries()));
+  }
+
   return Object.fromEntries(
     Object.entries(headers).map(([key, value]) => [String(key).toLowerCase(), value])
   );
@@ -128,19 +129,15 @@ async function invokeApp(app, {
       settled = true;
       if (typeof callback === 'function') callback();
 
-      const responseBody = Buffer.concat(chunks).toString('utf8');
       resolve({
         status: response.statusCode,
         headers: Object.fromEntries(responseHeaders.entries()),
-        body: responseBody,
-        json() {
-          return JSON.parse(responseBody || 'null');
-        },
+        body: Buffer.concat(chunks).toString('utf8'),
       });
       return response;
     };
 
-    const serializedBody = body === undefined
+    const serializedBody = body === undefined || body === null
       ? null
       : Buffer.from(
           typeof body === 'string'
@@ -167,10 +164,9 @@ async function invokeApp(app, {
     });
 
     if (serializedBody) {
-      request.end(serializedBody);
-    } else {
-      request.end();
+      request.push(serializedBody);
     }
+    request.push(null);
   });
 }
 
@@ -202,7 +198,7 @@ function createFetchAdapter(app) {
   };
 }
 
-function buildApp() {
+function createRuntime() {
   const app = express();
   app.use(express.json());
 
@@ -211,32 +207,6 @@ function buildApp() {
     expectedChainId: 8453,
     resolveSubject(req) {
       return String(req.headers['x-demo-user'] || '').trim() || null;
-    },
-  });
-
-  const readPolicy = createProtectMiddleware({
-    policy({ trust }) {
-      return {
-        allow: trustSatisfiesRequirement(trust, 'verified_identity'),
-        reason: 'Verified identity required.',
-        requiredTrust: 'verified_identity',
-      };
-    },
-  });
-
-  const deletePolicy = createProtectMiddleware({
-    resolveAction() {
-      return {
-        kind: 'delete',
-        scope: 'demo:dangerous-delete',
-      };
-    },
-    policy({ trust, action }) {
-      return {
-        allow: trustSatisfiesRequirement(trust, 'verified_action', action),
-        reason: 'Verified action required for dangerous delete.',
-        requiredTrust: 'verified_action',
-      };
     },
   });
 
@@ -249,35 +219,21 @@ function buildApp() {
   });
   app.post('/wallet/challenge', walletWitness.challengeRoute);
   app.post('/wallet/verify', walletWitness.verifyRoute);
-  app.post('/notes', readPolicy, (_req, res) => {
-    res.json({ ok: true, route: 'notes' });
-  });
-  app.post('/dangerous', deletePolicy, (_req, res) => {
-    res.json({ ok: true, route: 'dangerous' });
-  });
 
-  return app;
-}
-
-function sessionHeaders(userId, sessionId) {
   return {
-    'x-demo-user': userId,
-    ...(sessionId ? { 'x-walletwitness-session': sessionId } : {}),
+    fetch: createFetchAdapter(app),
   };
 }
 
-async function main() {
-  const account = privateKeyToAccount(
-    '0x59c6995e998f97a5a0044976f1d81f4edc7d4b6ed7f42fb178cdb5f7f8b3d1cf'
-  );
-  const app = buildApp();
+test('client helpers complete verify-session and step-up flows', async () => {
+  const runtime = createRuntime();
   const trustStore = createTrustStateStore();
   const client = createWalletWitnessClient({
     baseUrl: 'http://walletwitness.local',
     defaultHeaders: {
       'x-demo-user': 'user-jun',
     },
-    fetch: createFetchAdapter(app),
+    fetch: runtime.fetch,
     trustStore,
   });
 
@@ -286,14 +242,10 @@ async function main() {
     chainId: 8453,
     signer: account,
   });
-  const sessionId = client.getSessionId();
 
-  const blockedDangerous = await invokeApp(app, {
-    method: 'POST',
-    path: '/dangerous',
-    headers: sessionHeaders('user-jun', sessionId),
-  });
-  const blockedDangerousPayload = blockedDangerous.json();
+  assert.ok(client.getSessionId());
+  assert.equal(sessionFlow.verifyResponse.trust.state, 'verified_identity');
+  assert.equal(trustStore.get().state, 'verified_identity');
 
   const stepUpFlow = await client.verifyAction({
     action: {
@@ -303,24 +255,50 @@ async function main() {
     signer: account,
   });
 
-  const allowedDangerous = await invokeApp(app, {
-    method: 'POST',
-    path: '/dangerous',
-    headers: sessionHeaders('user-jun', sessionId),
+  assert.equal(stepUpFlow.verifyResponse.trust.state, 'verified_action');
+  assert.equal(trustStore.get().actionGrant.scope, 'demo:dangerous-delete');
+
+  const sessionPayload = await client.getSession();
+  assert.equal(sessionPayload.trust.state, 'verified_action');
+
+  const summary = describeTrustState(trustStore.get());
+  assert.equal(summary.state, 'verified_action');
+  assert.match(summary.detail, /demo:dangerous-delete/);
+  assert.match(
+    renderTrustStatusBadge(trustStore.get()),
+    /data-walletwitness-trust="verified_action"/
+  );
+});
+
+test('trust store normalizes snapshots and escapes widget output', () => {
+  const store = createTrustStateStore();
+  const seenStates = [];
+  const unsubscribe = store.subscribe((trust) => {
+    seenStates.push(trust.state);
   });
-  const allowedDangerousPayload = allowedDangerous.json();
 
-  console.log('WalletWitness demo');
-  console.log(`Session challenge issued: ${sessionFlow.challenge.challengeId}`);
-  console.log(`Trust after verify-session: ${sessionFlow.verifyResponse.trust.state}`);
-  console.log(`Protected action before step-up: ${blockedDangerous.status} ${blockedDangerousPayload.error}`);
-  console.log(`Step-up challenge issued: ${stepUpFlow.challenge.challengeId}`);
-  console.log(`Trust after verify-action: ${stepUpFlow.verifyResponse.trust.state} (${stepUpFlow.verifyResponse.trust.actionGrant.scope})`);
-  console.log(renderTrustStatusBadge(trustStore.get()));
-  console.log(`Protected action after step-up: ${allowedDangerous.status} ${JSON.stringify(allowedDangerousPayload)}`);
-}
+  store.set({
+    state: 'verified_action',
+    actionGrant: {
+      scope: 'demo:<dangerous-delete>',
+      expiresAt: 2_000,
+    },
+    expiresAt: 2_000,
+  });
+  unsubscribe();
+  store.set(null);
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
+  assert.deepEqual(seenStates, ['verified_action']);
+  assert.equal(store.get().state, 'anonymous');
+  assert.match(
+    renderTrustStatusBadge({
+      state: 'verified_action',
+      actionGrant: {
+        scope: 'demo:<dangerous-delete>',
+        expiresAt: 2_000,
+      },
+      expiresAt: 2_000,
+    }),
+    /demo:&lt;dangerous-delete&gt;/
+  );
 });

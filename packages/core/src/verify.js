@@ -48,6 +48,7 @@ async function verifyChallengeResponse({
   expectedChainId,
   message,
   now = Date.now(),
+  sessionId,
   signature,
   store,
 }) {
@@ -55,6 +56,7 @@ async function verifyChallengeResponse({
     challengeId,
     message,
     now,
+    sessionId,
     store,
   });
 
@@ -69,6 +71,7 @@ async function verifyChallengeResponse({
     challengeId,
     message: challenge.message,
     now,
+    sessionId,
     store,
   });
 

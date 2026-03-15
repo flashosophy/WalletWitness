@@ -16,24 +16,6 @@ This is also what protects against impersonation. It's not enough to block stran
 
 ---
 
-## Prerequisites
-
-**WalletWitness assumes you already have:**
-
-- A **crypto wallet** (browser extension or mobile app) that supports Ethereum/EVM signing
-- **Basic familiarity** with wallet signing, seed phrases, and gasless off-chain messages
-- A **development environment** with Node.js and npm/yarn/pnpm
-
-**What this project does NOT include:**
-
-- Wallet setup guides or seed phrase management tutorials
-- Recommendations for specific wallet software
-- Blockchain education or crypto onboarding
-
-**If you're new to crypto wallets:** You'll need to set one up and understand signing basics before using WalletWitness. This project is designed for developers who already have wallet infrastructure in place.
-
----
-
 ## Three Promises
 
 WalletWitness does exactly three things and nothing else:
@@ -75,6 +57,60 @@ Trust only moves **up** via cryptographic signature — never from conversation 
 npm install
 npm test
 ```
+
+---
+
+## Prerequisites
+
+**WalletWitness assumes you already have:**
+
+- A **crypto wallet** (browser extension or mobile app) that supports Ethereum/EVM signing
+- **Basic familiarity** with wallet signing, seed phrases, and gasless off-chain messages
+- A **development environment** with Node.js and npm/yarn/pnpm
+
+**What this project does NOT include:**
+
+- Wallet setup guides or seed phrase management tutorials
+- Recommendations for specific wallet software
+- Blockchain education or crypto onboarding
+
+**If you're new to crypto wallets:** You'll need to set one up and understand signing basics before using WalletWitness. This project is designed for developers who already have wallet infrastructure in place.
+
+---
+
+## Where it fits
+
+WalletWitness works anywhere you have a server and a way for the user to sign with their wallet. Here's what that looks like in practice.
+
+---
+
+**Custom AI chat app** *(this is us — verified working)*
+
+You've built your own chat interface where an AI agent helps you manage things. WalletWitness sits in the background: when you open a sensitive menu or ask the agent to do something big, it asks you to sign with your wallet first. After that, it trusts it's you for the next hour (or however long you set). This is exactly how we use it in our own system.
+
+---
+
+**Admin panel or dashboard**
+
+You have a backend with an admin area — maybe for managing users, deployments, or settings. You already have a login system, but you want to be extra sure that certain actions (deleting things, changing configurations) actually came from you and not someone who grabbed your session. WalletWitness adds wallet signing on top of your existing login. No ripping out your auth system.
+
+---
+
+**Any API you control**
+
+If your API runs on Node/Express, WalletWitness drops in as middleware. Whether it's an AI agent API, a personal tool, or a backend you've built — if you can add Express middleware, you can add WalletWitness.
+
+---
+
+**Discord or Telegram bots** *(possible, but needs an extra step)*
+
+These platforms don't support wallet signing directly in the chat window. The way it works: your bot sends the user a link to a small signing page, they sign there with their wallet extension or phone, and then the trust session is active for the bot's backend. More steps, but it works — we just haven't built a ready-made integration for these yet.
+
+---
+
+**What doesn't work (yet)**
+
+Command-line tools and terminals can't sign wallet challenges on their own — there's nowhere to pop up a wallet confirmation. If that's something you need, it would require a companion browser page or phone app to handle the signing step.
 
 ---
 
@@ -156,42 +192,6 @@ app.get('/profile', (req, res) => {
   }
 });
 ```
-
----
-
-## Where it fits
-
-WalletWitness works anywhere you have a server and a way for the user to sign with their wallet. Here's what that looks like in practice.
-
----
-
-**Custom AI chat app** *(this is us — verified working)*
-
-You've built your own chat interface where an AI agent helps you manage things. WalletWitness sits in the background: when you open a sensitive menu or ask the agent to do something big, it asks you to sign with your wallet first. After that, it trusts it's you for the next hour (or however long you set). This is exactly how we use it in our own system.
-
----
-
-**Admin panel or dashboard**
-
-You have a backend with an admin area — maybe for managing users, deployments, or settings. You already have a login system, but you want to be extra sure that certain actions (deleting things, changing configurations) actually came from you and not someone who grabbed your session. WalletWitness adds wallet signing on top of your existing login. No ripping out your auth system.
-
----
-
-**Any API you control**
-
-If your API runs on Node/Express, WalletWitness drops in as middleware. Whether it's an AI agent API, a personal tool, or a backend you've built — if you can add Express middleware, you can add WalletWitness.
-
----
-
-**Discord or Telegram bots** *(possible, but needs an extra step)*
-
-These platforms don't support wallet signing directly in the chat window. The way it works: your bot sends the user a link to a small signing page, they sign there with their wallet extension or phone, and then the trust session is active for the bot's backend. More steps, but it works — we just haven't built a ready-made integration for these yet.
-
----
-
-**What doesn't work (yet)**
-
-Command-line tools and terminals can't sign wallet challenges on their own — there's nowhere to pop up a wallet confirmation. If that's something you need, it would require a companion browser page or phone app to handle the signing step.
 
 ---
 

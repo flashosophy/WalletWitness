@@ -37,8 +37,22 @@ function createProtectMiddleware({
       return next();
     }
 
+    const reason = String(decision.reason || 'Action denied by trust policy.').trim() || 'Action denied by trust policy.';
+    const logEntry = {
+      event: 'walletwitness:access_denied',
+      at: new Date().toISOString(),
+      trust_state: trust.state,
+      address: trust.address || null,
+      chain_id: trust.chainId || null,
+      ...(action ? { action } : {}),
+      reason,
+      required_trust: decision.requiredTrust || null,
+      session_id: req?.walletWitness?.sessionId || null,
+    };
+    console.warn('[WalletWitness] Access denied', JSON.stringify(logEntry));
+
     return res.status(403).json({
-      error: String(decision.reason || 'Action denied by trust policy.').trim() || 'Action denied by trust policy.',
+      error: reason,
       requiredTrust: decision.requiredTrust || null,
       trust,
       ...(action ? { action } : {}),

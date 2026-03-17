@@ -226,6 +226,16 @@ function createWalletWitnessMiddleware(options = {}) {
 
       if (storedTrust && !sameTrust(storedTrust, evaluatedTrust)) {
         await trustSessionStore.set(storageKey, evaluatedTrust);
+        if (storedTrust.state !== evaluatedTrust.state) {
+          console.info('[WalletWitness] Session state changed', JSON.stringify({
+            event: 'walletwitness:session_state_change',
+            at: new Date().toISOString(),
+            session_id: sessionId,
+            from: storedTrust.state,
+            to: evaluatedTrust.state,
+            address: evaluatedTrust.address || storedTrust.address || null,
+          }));
+        }
       }
 
       req.walletWitness = {

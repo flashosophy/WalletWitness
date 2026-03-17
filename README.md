@@ -6,7 +6,7 @@ An AI agent can be given a lot of trust. It can read your files, send messages o
 
 The problem isn't authentication — most systems already have logins. The problem is that session tokens don't prove *identity*. A grabbed cookie, a leaked API key, a browser left open at a café: any of these let someone else walk into your agent's front door wearing your credentials.
 
-WalletWitness is built around a different question — not *"does this session exist?"* but **"is this actually my human?"**
+Your agent is already asking a question it can't answer: *"is this actually my human?"* WalletWitness is built to answer it.
 
 The answer is a cryptographic signature. Your wallet already proves *"this is me"* on-chain. WalletWitness brings that same proof into the AI interaction layer — so the agent can be confident the person giving sensitive instructions is the person who owns it.
 

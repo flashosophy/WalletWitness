@@ -223,13 +223,27 @@
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         connectedAddress = accounts[0];
 
-        // Check chain
+        // Check chain — attempt auto-switch if needed
         const chainHex = await window.ethereum.request({ method: 'eth_chainId' });
         const chain = parseInt(chainHex, 16);
         if (chain !== CHAIN_ID) {
-          show('result-identity', `Wrong network. Switch to Base (chainId ${CHAIN_ID}). You're on chain ${chain}.`, 'err');
-          document.getElementById('btn-verify').disabled = false;
-          return;
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x' + CHAIN_ID.toString(16) }],
+            });
+            // Re-check after switch
+            const recheckHex = await window.ethereum.request({ method: 'eth_chainId' });
+            if (parseInt(recheckHex, 16) !== CHAIN_ID) {
+              show('result-identity', `Wrong network. Switch to Base (chainId ${CHAIN_ID}). You're on chain ${parseInt(recheckHex, 16)}.`, 'err');
+              document.getElementById('btn-verify').disabled = false;
+              return;
+            }
+          } catch (switchErr) {
+            show('result-identity', `Wrong network. Switch to Base (chainId ${CHAIN_ID}). You're on chain ${chain}.`, 'err');
+            document.getElementById('btn-verify').disabled = false;
+            return;
+          }
         }
 
         // Request challenge with chosen TTL

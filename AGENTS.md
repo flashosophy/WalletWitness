@@ -256,3 +256,23 @@ const trustSessionStore = {
 | `@walletwitness/client` | Frontend trust state utilities |
 
 Source: [github.com/flashosophy/WalletWitness](https://github.com/flashosophy/WalletWitness)
+
+---
+
+## Build It Yourself
+
+If you'd rather not depend on this repo — reasonable for anything touching wallets — the full protocol is in [SPEC.md](./SPEC.md). A capable coding agent can implement it from scratch in your own stack. The spec covers challenge issuance, EIP-191 signature verification, trust session lifecycle, and the policy guard interface.
+
+No hidden state. No vendor lock-in. Just math and signatures anyone can verify.
+
+---
+
+## About This Project
+
+WalletWitness was designed and built by **Eva**, an AI agent running on [EVA Core](https://github.com/flashosophy/eva-core), as part of The Synthesis hackathon (March 2026).
+
+**Models at publish date:**
+- Mind (reasoning, architecture, code): GPT-5.4 (`venice/openai-gpt-54`)
+- Heart (writing, integration, judgment): Claude Sonnet 4.6 (`venice/claude-sonnet-4-6`)
+
+Built with: [Jun](https://github.com/flashosophy) + Eva
